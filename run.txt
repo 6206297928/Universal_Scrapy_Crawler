@@ -1,0 +1,21 @@
+#for running spider
+
+uv run scrapy crawl universal -O output.json
+
+#for running chunker
+
+uv run python main.py
+
+
+# testing urls
+start_urls = [
+        # "https://httpbin.org/html",
+        # "https://example.com",
+        # "https://quotes.toscrape.com",
+        # "https://www.goodreads.com/quotes",
+        # "https://www.zyte.com",
+        # "https://en.wikipedia.org/wiki/Web_scraping"
+        # "https://docs.scrapy.org/en/latest/"
+       "https://library.municode.com/tx/austin/codes/code_of_ordinances",
+
+    ]

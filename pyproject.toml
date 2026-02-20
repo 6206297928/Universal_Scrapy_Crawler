@@ -1,0 +1,12 @@
+[project]
+name = "universal-scrapy-crawler"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "beautifulsoup4>=4.14.3",
+    "lxml>=6.0.2",
+    "scrapy>=2.14.1",
+    "scrapy-playwright>=0.0.46",
+]
