@@ -8,10 +8,11 @@ A production-ready, universal web scraper built with **Scrapy** and **Playwright
 
 - **Universal Crawling** — Works on any website, no site-specific selectors needed
 - **JavaScript Rendering** — Uses Playwright under the hood to handle SPAs and dynamic content
-- **Smart Content Extraction** — Automatically identifies the main content area using a scoring algorithm (text length, paragraph count, link density)
-- **Content Cleaning** — Strips extra whitespace, unicode artifacts, and noise
+- **Smart Content Extraction** — Uses [trafilatura](https://trafilatura.readthedocs.io/) for robust boilerplate removal, article detection, and noise filtering
+- **CrawlSpider Architecture** — Leverages Scrapy's `CrawlSpider` + `Rule` + `LinkExtractor` for automatic link following and built-in `RFPDupeFilter` for URL deduplication
+- **Built-in Feed Export** — Uses Scrapy's native `FEEDS` setting for JSON output (no custom pipeline needed)
+- **HTTP Caching** — Caches responses locally so re-runs don't re-download pages (24h expiry)
 - **AI-Ready Chunking** — Splits extracted content into overlapping chunks with metadata, ready for vector DB ingestion
-- **Link Following** — Automatically discovers and follows internal links up to a configurable depth
 - **Auto-Throttling** — Built-in rate limiting and concurrency control to be respectful to target servers
 
 ---
@@ -29,16 +30,17 @@ universal_scrapy_crawler/
 │
 └── universal/
     ├── __init__.py
-    ├── items.py                         # Scrapy item schema
+    ├── items.py                         # Scrapy item schema (UniversalItem)
     ├── middlewares.py                   # Scrapy middlewares
-    ├── pipelines.py                     # Data pipeline (saves to output.json)
-    ├── settings.py                      # Scrapy + Playwright settings
+    ├── pipelines.py                     # Placeholder (Feed Export handles output)
+    ├── settings.py                      # Scrapy + Playwright + caching settings
     │
     ├── spiders/
-    │   └── universal_spider.py          # Main spider with Playwright support
+    │   ├── universal_spider.py          # Main spider (CrawlSpider + Playwright)
+    │   └── universal_spider_copy.py     # Legacy spider (kept for reference)
     │
     └── utils/
-        ├── content_extractor.py         # Text cleaning utilities
+        ├── content_extractor.py         # Trafilatura-based content extraction
         └── chunker.py                   # Content chunking engine
 ```
 
@@ -46,13 +48,14 @@ universal_scrapy_crawler/
 
 ## 🛠️ Tech Stack
 
-| Tool | Purpose |
-|------|---------|
-| [Scrapy](https://scrapy.org/) | Web crawling framework |
-| [Playwright](https://playwright.dev/) (via `scrapy-playwright`) | JavaScript rendering |
-| [BeautifulSoup4](https://www.crummy.com/software/BeautifulSoup/) | HTML parsing |
-| [lxml](https://lxml.de/) | Fast XML/HTML parser |
-| [uv](https://docs.astral.sh/uv/) | Python package manager |
+| Tool                                                             | Purpose                                  |
+| ---------------------------------------------------------------- | ---------------------------------------- |
+| [Scrapy](https://scrapy.org/)                                    | Web crawling framework (CrawlSpider)     |
+| [Playwright](https://playwright.dev/) (via `scrapy-playwright`)  | JavaScript rendering                     |
+| [trafilatura](https://trafilatura.readthedocs.io/)               | Content extraction & boilerplate removal |
+| [BeautifulSoup4](https://www.crummy.com/software/BeautifulSoup/) | HTML parsing (legacy)                    |
+| [lxml](https://lxml.de/)                                         | Fast XML/HTML parser                     |
+| [uv](https://docs.astral.sh/uv/)                                 | Python package manager                   |
 
 ---
 
@@ -99,6 +102,7 @@ uv run scrapy crawl universal -O output.json
 ```
 
 This will:
+
 - Crawl the target site(s) with JavaScript rendering
 - Follow links up to depth 2 (configurable in `settings.py`)
 - Extract and clean main content from each page
@@ -113,6 +117,7 @@ uv run python main.py
 ```
 
 This will:
+
 - Read the scraped data from `output.json`
 - Filter out pages with less than 200 characters of content
 - Split content into overlapping chunks (800 chars with 100 char overlap)
@@ -124,22 +129,24 @@ This will:
 
 ### Spider Settings (`universal/settings.py`)
 
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `DEPTH_LIMIT` | `2` | Max link-following depth |
-| `CLOSESPIDER_PAGECOUNT` | `10` | Max pages to crawl per run |
-| `CONCURRENT_REQUESTS` | `8` | Parallel request limit |
-| `DOWNLOAD_TIMEOUT` | `120` | Page load timeout (seconds) |
-| `AUTOTHROTTLE_ENABLED` | `True` | Automatic rate limiting |
-| `PLAYWRIGHT_BROWSER_TYPE` | `chromium` | Browser engine to use |
+| Setting                     | Default    | Description                                |
+| --------------------------- | ---------- | ------------------------------------------ |
+| `DEPTH_LIMIT`               | `2`        | Max link-following depth                   |
+| `CLOSESPIDER_PAGECOUNT`     | `10`       | Max pages to crawl per run                 |
+| `CONCURRENT_REQUESTS`       | `8`        | Parallel request limit                     |
+| `DOWNLOAD_TIMEOUT`          | `120`      | Page load timeout (seconds)                |
+| `AUTOTHROTTLE_ENABLED`      | `True`     | Automatic rate limiting                    |
+| `PLAYWRIGHT_BROWSER_TYPE`   | `chromium` | Browser engine to use                      |
+| `HTTPCACHE_ENABLED`         | `True`     | Cache responses locally for faster re-runs |
+| `HTTPCACHE_EXPIRATION_SECS` | `86400`    | Cache expires after 24 hours               |
 
 ### Chunker Settings (`universal/utils/chunker.py`)
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `chunk_size` | `800` | Max characters per chunk |
-| `overlap` | `100` | Overlapping characters between chunks |
-| `min_chunk_size` | `100` | Minimum useful chunk size |
+| Parameter        | Default | Description                           |
+| ---------------- | ------- | ------------------------------------- |
+| `chunk_size`     | `800`   | Max characters per chunk              |
+| `overlap`        | `100`   | Overlapping characters between chunks |
+| `min_chunk_size` | `100`   | Minimum useful chunk size             |
 
 ---
 
@@ -183,23 +190,24 @@ Target URL
     │
     ▼
 ┌──────────────────────┐
-│  Playwright Browser   │  ← Renders JavaScript
+│  Playwright Browser   │  ← Renders JavaScript (chromium, headless)
 └──────────┬───────────┘
            │
            ▼
 ┌──────────────────────┐
-│  Universal Spider     │  ← Extracts main content using scoring algorithm
-│  (Scrapy)             │     Score = text_length + (paragraphs × 200) - (links × 100)
+│  CrawlSpider + Rules  │  ← LinkExtractor discovers links automatically
+│  (Scrapy)             │     RFPDupeFilter deduplicates URLs
 └──────────┬───────────┘
            │
            ▼
 ┌──────────────────────┐
-│  Content Cleaner      │  ← Removes whitespace, unicode artifacts
+│  trafilatura          │  ← Boilerplate removal, article detection,
+│                       │     noise filtering (replaces old heuristic scorer)
 └──────────┬───────────┘
            │
            ▼
 ┌──────────────────────┐
-│  Pipeline             │  ← Saves to output.json
+│  Feed Export          │  ← Scrapy's built-in FEEDS setting → output.json
 └──────────┬───────────┘
            │
            ▼
@@ -213,6 +221,18 @@ Target URL
 
 ---
 
+## 🔄 What Changed (v2)
+
+| Area                   | Before (v1)                                                            | After (v2)                                                                                |
+| ---------------------- | ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| **Content Extraction** | Custom heuristic scorer (text length + paragraph count − link density) | [trafilatura](https://trafilatura.readthedocs.io/) — battle-tested NLP extraction library |
+| **Spider Type**        | Basic `scrapy.Spider` with manual link tracking                        | `CrawlSpider` + `Rule` + `LinkExtractor` — automatic link following & dedup               |
+| **Output Pipeline**    | Custom `JsonWriterPipeline` in `pipelines.py`                          | Scrapy's built-in `FEEDS` setting (zero custom code)                                      |
+| **HTTP Caching**       | None                                                                   | Enabled — re-runs skip already-downloaded pages (24h expiry)                              |
+| **Dependencies**       | `beautifulsoup4`, `lxml`                                               | Added `trafilatura` for extraction                                                        |
+
+---
+
 ## 📄 License
 
 This project is open source and available for personal and educational use.
@@ -222,4 +242,5 @@ This project is open source and available for personal and educational use.
 ## 👤 Author
 
 **Sukumar Poddar**
+
 - GitHub: [@6206297928](https://github.com/6206297928)
