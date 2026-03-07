@@ -3,7 +3,7 @@ BOT_NAME = "universal"
 SPIDER_MODULES = ["universal.spiders"]
 NEWSPIDER_MODULE = "universal.spiders"
 
-ROBOTSTXT_OBEY = False
+ROBOTSTXT_OBEY = True
 
 # Demo crawl limits
 DEPTH_LIMIT = 2
@@ -45,3 +45,23 @@ AUTOTHROTTLE_ENABLED = True
 PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT = 60000
 DOWNLOAD_TIMEOUT = 120
 
+# ========================
+# BUILT-IN FEED EXPORT
+# ========================
+# Replaces custom pipeline — Scrapy writes output.json automatically
+FEEDS = {
+    "output.json": {
+        "format": "json",
+        "overwrite": True,
+    },
+}
+
+# ========================
+# HTTP CACHE (dev speed boost)
+# ========================
+# Caches responses locally so re-runs don't re-download pages.
+# Delete .scrapy_cache/ folder to force a fresh crawl.
+HTTPCACHE_ENABLED = True
+HTTPCACHE_DIR = ".scrapy_cache"
+HTTPCACHE_EXPIRATION_SECS = 86400  # cache expires after 24 hours
+HTTPCACHE_IGNORE_HTTP_CODES = [403, 500, 502, 503]  # don't cache error pages

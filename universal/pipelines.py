@@ -1,26 +1,19 @@
-import json
+# ============================================================
+# Custom pipeline no longer needed.
+#
+# Output is handled by Scrapy's built-in Feed Export system
+# configured via the FEEDS setting in settings.py:
+#
+#   FEEDS = {
+#       "output.json": {"format": "json", "overwrite": True},
+#   }
+#
+# This writes output.json automatically when the spider closes.
+# ============================================================
 
 
 class UniversalPipeline:
-
-    def open_spider(self, spider):
-
-        self.file = open("output.json", "w")
-
-        self.data = []
-
+    """Placeholder — kept for future custom processing if needed."""
 
     def process_item(self, item, spider):
-
-        self.data.append(dict(item))
-
         return item
-
-
-    def close_spider(self, spider):
-
-        json.dump(self.data, self.file, indent=2)
-
-        self.file.close()
-
-        print("\nSaved output.json")

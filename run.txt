@@ -1,6 +1,11 @@
 #for running spider
 
-uv run scrapy crawl universal -O output.json
+uv run scrapy crawl universal
+
+#running old spider
+uv run scrapy crawl universal_old 
+
+
 
 #for running chunker
 

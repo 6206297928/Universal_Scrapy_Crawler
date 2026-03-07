@@ -9,4 +9,5 @@ dependencies = [
     "lxml>=6.0.2",
     "scrapy>=2.14.1",
     "scrapy-playwright>=0.0.46",
+    "trafilatura>=2.0.0",
 ]
